@@ -2,20 +2,12 @@ import express, { json } from "express";
 import cors from "cors";
 import fs from "fs";
 import multer from "multer";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import connection from "./connection.js";
+import { create } from "domain";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 
-
-app.get("/teste", (req, res)=>{
-  const id = uuidv4();
-  res.send(id)
-})
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -72,6 +64,22 @@ app.post("/login", async (req, res) => {
     return res.sendStatus(500);
   }
 });
+
+app.post("/posts", upload.single("image"), async (req, res) => {
+  try {
+    const { image, description, user_id, user_is_ong } = req.body;
+    await connection.query(`
+      INSERT INTO posts 
+      (image, description, created_at, user_id, user_is_ong)
+      VALUES
+      ($1, $2, $3, $4, $5);`, [image, description, create_at, user_id, user_is_ong])
+    res.status(201).json({ message: "Post criado com sucesso!", post: dados });
+  } catch (error) {
+    console.error("Erro ao processar a requisição:", error);
+    res.status(500).json({ error: "Erro ao processar a requisição." });
+  }
+});
+
 
 
 

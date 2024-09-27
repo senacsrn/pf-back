@@ -15,6 +15,8 @@ app.use(express.json());
 
 app.use(cors());
 
+//POSTS
+
 app.post("/register", async (req, res) => {
   try {
     const { name, email, password, is_ong } = req.body;
@@ -92,7 +94,9 @@ app.post("/like", async (req, res)=>{
   }
 })
 
-app.get("/posts/:id", async (req, res) => {
+//GETS
+
+app.get("/profile/:id", async (req, res) => {
   const postId = req.params.id;
   try {
     const postData = await connection.query(`select * from posts where id = $1;`, [postId]);
@@ -112,6 +116,81 @@ app.get("/posts/:id", async (req, res) => {
   }
 });
 
+app.get("/posts", async (req, res) => {
+  try {
+    const postData = await connection.query(`select * from posts;`);
+    const post = postData.rows;
+    if (!post) {
+      return res.status(404).json({ error: "Post not found." });
+    }
+    res.status(200).send(post);
+  } catch (error) {
+    console.error("Erro ao processar a requisição:", error);
+    res.status(500).json({ error: "Erro ao processar a requisição." });
+  }
+});
+
+app.get("/user/", async (req, res) => {
+  
+  try {
+    //const search = req.params.search;
+    const search = req.query.search
+    const result = await connection.query("SELECT * FROM users WHERE name ILIKE $1", [`%${search}%`]);
+
+    if (result.rows.length > 0) {
+      res.status(200).send(result.rows);
+    } else {
+      res.status(404).send("Nenhum usuário encontrado");
+    }
+  } catch (error) {
+    console.error("Erro ao buscar usuário:", error);
+    res.status(500).send("Erro interno do servidor");
+  }
+});
+
+//PUTS
+
+app.put("/user/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { name } = req.body;
+
+    const result = await connection.query(`
+      UPDATE users
+      SET name = $1
+      WHERE id = $2;`, [name, id]);
+    
+    if (result.rowCount > 0) {
+      res.status(200).send("Nome do usuário atualizado com sucesso");
+    } else {
+      res.status(404).send("Usuário não encontrado");
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar usuário:", error);
+    res.status(500).send("Erro interno do servidor");
+  }
+});
+
+app.put("/image", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { name } = req.body;
+
+    const result = await connection.query(`
+      UPDATE users
+      SET name = $1
+      WHERE id = $2;`, [name, id]);
+    
+    if (result.rowCount > 0) {
+      res.status(200).send("Nome do usuário atualizado com sucesso");
+    } else {
+      res.status(404).send("Usuário não encontrado");
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar usuário:", error);
+    res.status(500).send("Erro interno do servidor");
+  }
+});
 
 
 app.listen(PORT, () => {

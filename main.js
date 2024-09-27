@@ -92,6 +92,26 @@ app.post("/like", async (req, res)=>{
   }
 })
 
+app.get("/posts/:id", async (req, res) => {
+  const postId = req.params.id;
+  try {
+    const postData = await connection.query(`select * from posts where id = $1;`, [postId]);
+    const post = postData.rows[0];
+    if (!post) {
+      return res.status(404).json({ error: "Post not found." });
+    }
+    const userData = await connection.query(`select email, name, is_ong from users where id = $1;`, [post.user_id]);
+    const user = userData.rows[0];
+    res.status(200).json({
+      post: post,
+      user: user
+    });
+  } catch (error) {
+    console.error("Erro ao processar a requisição:", error);
+    res.status(500).json({ error: "Erro ao processar a requisição." });
+  }
+});
+
 
 
 app.listen(PORT, () => {

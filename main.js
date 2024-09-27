@@ -1,26 +1,14 @@
 import express, { json } from "express";
 import cors from "cors";
-import fs from "fs";
 import multer from "multer";
 import connection from "./connection.js";
-import { create } from "domain";
 
 
 const app = express();
 
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "src/pictures");
-  },
-  filename: (req, file, cb) => {
-    const date = new Date();
-    cb(null, `${date.getTime()}-${file.originalname}`);
-  },  
-});
-
 const PORT = 8008;
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
+
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -65,21 +53,44 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/posts", upload.single("image"), async (req, res) => {
+app.post("/posts", upload.single("midia"), async (req, res) => {
   try {
-    const { image, description, user_id, user_is_ong } = req.body;
+    console.log(req.file);
+
+    const { description, user_id, user_is_ong } = req.body;
+    const midia = req.file.buffer;
+
+    console.log(midia)
+
+    const newDate = new Date();
+    const timestamp = newDate.toISOString(); 
+
     await connection.query(`
       INSERT INTO posts 
-      (image, description, created_at, user_id, user_is_ong)
+      (midia, description, created_at, user_id, user_is_ong)
       VALUES
-      ($1, $2, $3, $4, $5);`, [image, description, create_at, user_id, user_is_ong])
-    res.status(201).json({ message: "Post criado com sucesso!", post: dados });
+      ($1, $2, $3, $4, $5);`, [midia, description, timestamp, user_id, user_is_ong]);
+    
+    res.status(201).send("Post criado com sucesso");
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
-    res.status(500).json({ error: "Erro ao processar a requisição." });
+    res.status(500).send("Erro interno do servidor");
   }
 });
 
+app.post("/like", async (req, res)=>{
+  const {user_id,  post_id} = req.body;
+  try {
+    await connection.query(`
+      INSERT INTO posts 
+      (user_id, post_id)
+      VALUES
+      ($1, $2);`, [user_id, post_id]);
+  }
+  catch(error){
+    console.log(error)
+  }
+})
 
 
 

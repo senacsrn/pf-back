@@ -19,18 +19,18 @@ app.use(cors());
 
 app.post("/register", async (req, res) => {
   try {
-    const { name, email, password, is_ong } = req.body;
+    const { name, email, password, is_ong , phone } = req.body;
     
     await connection.query(`
       INSERT INTO users 
-      (name, email, password, is_ong)
+      (name, email, password, is_ong, phone)
       VALUES
-      ($1, $2, $3, $4);`, [name, email, password, is_ong]);
+      ($1, $2, $3, $4, $5);`, [name, email, password, is_ong, phone]);
     
     const result = await connection.query(`SELECT id FROM users WHERE email = $1;`, [email]);
     const id = result.rows[0].id;
 
-    res.status(201).send({ name, email, password, is_ong, id });
+    res.status(201).send({ name, email, password, is_ong, phone, id });
   } catch (error) {
     console.log(error);
     res.sendStatus(409);
@@ -57,12 +57,10 @@ app.post("/login", async (req, res) => {
 
 app.post("/posts", upload.single("midia"), async (req, res) => {
   try {
-    console.log(req.file);
 
     const { description, user_id, user_is_ong } = req.body;
     const midia = req.file.buffer;
 
-    console.log(midia)
 
     const newDate = new Date();
     const timestamp = newDate.toISOString(); 
@@ -133,12 +131,20 @@ app.get("/posts", async (req, res) => {
 app.get("/user/", async (req, res) => {
   
   try {
-    //const search = req.params.search;
     const search = req.query.search
-    const result = await connection.query("SELECT * FROM users WHERE name ILIKE $1", [`%${search}%`]);
-
-    if (result.rows.length > 0) {
-      res.status(200).send(result.rows);
+    console.log(search.split(" "))
+    let foundUsers = []
+    let substrings = search.split(" ");
+    
+    for (const subString of substrings) {
+      const result = await connection.query("SELECT * FROM users WHERE name ILIKE $1", [`%${subString}%`]);
+      
+      if (result.rows.length > 0) {
+        foundUsers.push(result.rows);
+      }
+    }
+    if (foundUsers.length > 0) {
+      res.status(200).send(foundUsers);
     } else {
       res.status(404).send("Nenhum usuário encontrado");
     }
@@ -171,20 +177,20 @@ app.put("/user/:id", async (req, res) => {
   }
 });
 
-app.put("/image", async (req, res) => {
+app.put("/image/:id", upload.single("image"), async (req, res) => {
   try {
     const id = req.params.id;
-    const { name } = req.body;
+    const image = req.file.buffer
 
     const result = await connection.query(`
       UPDATE users
-      SET name = $1
-      WHERE id = $2;`, [name, id]);
+      SET image = $1
+      WHERE id = $2;`, [image, id]);
     
     if (result.rowCount > 0) {
-      res.status(200).send("Nome do usuário atualizado com sucesso");
+      res.status(200).send("Imagem atualizada com sucesso.");
     } else {
-      res.status(404).send("Usuário não encontrado");
+      res.status(404).send("Não foi possivel atualizar a imagem.");
     }
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
@@ -192,6 +198,47 @@ app.put("/image", async (req, res) => {
   }
 });
 
+app.put("/phone/:id", upload.single("image"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const phone = req.body.phone
+    console.log(phone)
+
+    const result = await connection.query(`
+      UPDATE users
+      SET phone = $1
+      WHERE id = $2;`, [phone, id]);
+    
+    if (result.rowCount > 0) {
+      res.status(200).send("Telefone atualizado com sucesso.");
+    } else {
+      res.status(404).send("Não foi possivel atualizar o telefone.");
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar usuário:", error);
+    res.status(500).send("Erro interno do servidor");
+  }
+});
+
+app.get("/post-img/:id", async (req, res) =>{
+  const id = req.params.id
+
+  try{
+    const result = await connection.query("SELECT midia FROM posts WHERE id = $1", [id])
+    const midia = result.rows[0].midia
+
+    if (!midia) {
+      return res.status(404).send('Midia não encontrada');
+    }
+
+    res.set("Content-Type", "image/jpeg")
+    res.send(midia)
+  }
+  catch(error){
+    console.error(error);
+    res.status(500).send('Erro ao buscar a imagem');
+  }
+})
 
 app.listen(PORT, () => {
   console.log(`Server rodando em http://localhost:${PORT}`);

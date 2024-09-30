@@ -240,6 +240,26 @@ app.get("/post-img/:id", async (req, res) =>{
   }
 })
 
+app.get("/user-img/:id", async (req, res) =>{
+  const id = req.params.id
+
+  try{
+    const result = await connection.query("SELECT image FROM users WHERE id = $1", [id])
+    const image = result.rows[0].image
+
+    if (!image) {
+      return res.status(404).send('Midia não encontrada');
+    }
+
+    res.set("Content-Type", "image/jpeg")
+    res.send(image)
+  }
+  catch(error){
+    console.error(error);
+    res.status(500).send('Erro ao buscar a imagem');
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Server rodando em http://localhost:${PORT}`);
 });

@@ -2,12 +2,44 @@ import express, { json } from "express";
 import cors from "cors";
 import multer from "multer";
 import connection from "./connection.js";
+import { fileTypeFromBuffer } from "file-type";
 
 
 const app = express();
 
 const PORT = 8008;
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/bmp',
+      'image/webp',
+      'image/svg+xml',
+      'image/tiff',
+      'image/heif',
+      
+
+      'video/mp4',
+      'video/avi',
+      'video/mov',
+      'video/mkv',
+      'video/webm',
+      'video/ogg',
+      'video/3gpp',
+      'video/3gpp2'
+    ];
+    
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo não permitido. Apenas imagens e vídeos são aceitos.'), false);
+    }
+  }
+});
 
 
 app.use(express.urlencoded({ extended: true }));
@@ -82,7 +114,7 @@ app.post("/like", async (req, res)=>{
   const {user_id,  post_id} = req.body;
   try {
     await connection.query(`
-      INSERT INTO posts 
+      INSERT INTO likes 
       (user_id, post_id)
       VALUES
       ($1, $2);`, [user_id, post_id]);
@@ -220,25 +252,31 @@ app.put("/phone/:id", upload.single("image"), async (req, res) => {
   }
 });
 
-app.get("/post-img/:id", async (req, res) =>{
-  const id = req.params.id
+app.get("/midia-post/:id", async (req, res) => {
+  const id = req.params.id;
 
-  try{
-    const result = await connection.query("SELECT midia FROM posts WHERE id = $1", [id])
-    const midia = result.rows[0].midia
+  try {
+    const result = await connection.query("SELECT midia FROM posts WHERE id = $1", [id]);
+    const midia = result.rows[0].midia;
 
     if (!midia) {
       return res.status(404).send('Midia não encontrada');
     }
 
-    res.set("Content-Type", "image/jpeg")
-    res.send(midia)
-  }
-  catch(error){
+    const type = await fileTypeFromBuffer(midia); // Aqui é a alteração
+
+    if (!type) {
+      return res.status(400).send('Tipo de mídia desconhecido');
+    }
+
+    res.set("Content-Type", type.mime);
+    res.send(midia);
+  } catch (error) {
     console.error(error);
     res.status(500).send('Erro ao buscar a imagem');
   }
-})
+});
+
 
 app.get("/user-img/:id", async (req, res) =>{
   const id = req.params.id

@@ -1,5 +1,3 @@
-Aqui está uma documentação completa para a API Express que você forneceu. Essa documentação deve ajudar os desenvolvedores front-end a interagir com a API de forma eficaz.
-
 # Documentação da API
 
 ## Descrição

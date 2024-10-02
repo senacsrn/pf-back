@@ -235,44 +235,39 @@ app.put("/user/:id", upload.single("image"), async (req, res) => {
     const id = req.params.id;
     const { name, phone } = req.body;
     const image = req.file ? req.file.buffer : null;
-
-    let fieldsToUpdate = [];
-    let values = [];
-    let queryIndex = 1;
+    
+    let updates = 0;
 
     if (name) {
-      fieldsToUpdate.push(`name = $${queryIndex++}`);
-      values.push(name);
+      const result = await connection.query(
+        `UPDATE users SET name = $1 WHERE id = $2;`, [name, id]
+      );
+      if (result.rowCount > 0) updates++;
     }
+
     if (phone) {
-      fieldsToUpdate.push(`phone = $${queryIndex++}`);
-      values.push(phone);
+      const result = await connection.query(
+        `UPDATE users SET phone = $1 WHERE id = $2;`, [phone, id]
+      );
+      if (result.rowCount > 0) updates++;
     }
+
     if (image) {
-      fieldsToUpdate.push(`image = $${queryIndex++}`);
-      values.push(image);
+      const result = await connection.query(
+        `UPDATE users SET image = $1 WHERE id = $2;`, [image, id]
+      );
+      if (result.rowCount > 0) updates++;
     }
 
-    if (fieldsToUpdate.length === 0) {
-      return res.status(400).send("Nenhum campo para atualizar.");
-    }
-
-    values.push(id);
-    const query = `
-      UPDATE users
-      SET ${fieldsToUpdate.join(", ")}
-      WHERE id = $${queryIndex};`;
-
-    const result = await connection.query(query, values);
-
-    if (result.rowCount > 0) {
-      res.status(200).send("Dados atualizados com sucesso.");
+    if (updates > 0) {
+      res.status(200).send("Dados do usuário atualizados com sucesso.");
     } else {
-      res.status(404).send("Usuário não encontrado.");
+      res.status(404).send("Nenhum dado foi atualizado ou usuário não encontrado.");
     }
+
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
-    res.status(500).send("Erro interno do servidor.");
+    res.status(500).send("Erro interno do servidor");
   }
 });
 

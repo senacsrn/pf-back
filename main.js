@@ -230,76 +230,49 @@ app.get("/user/", async (req, res) => {
 
 //PUTS
 
-app.put("/user/:id", async (req, res) => {
+app.put("/user/:id", upload.single("image"), async (req, res) => {
   try {
     const id = req.params.id;
-    const { name } = req.body;
+    const { name, phone } = req.body;
+    const image = req.file ? req.file.buffer : null;
 
-    const result = await connection.query(
-      `
+    let fieldsToUpdate = [];
+    let values = [];
+    let queryIndex = 1;
+
+    if (name) {
+      fieldsToUpdate.push(`name = $${queryIndex++}`);
+      values.push(name);
+    }
+    if (phone) {
+      fieldsToUpdate.push(`phone = $${queryIndex++}`);
+      values.push(phone);
+    }
+    if (image) {
+      fieldsToUpdate.push(`image = $${queryIndex++}`);
+      values.push(image);
+    }
+
+    if (fieldsToUpdate.length === 0) {
+      return res.status(400).send("Nenhum campo para atualizar.");
+    }
+
+    values.push(id);
+    const query = `
       UPDATE users
-      SET name = $1
-      WHERE id = $2;`,
-      [name, id]
-    );
+      SET ${fieldsToUpdate.join(", ")}
+      WHERE id = $${queryIndex};`;
+
+    const result = await connection.query(query, values);
 
     if (result.rowCount > 0) {
-      res.status(200).send("Nome do usuário atualizado com sucesso");
+      res.status(200).send("Dados atualizados com sucesso.");
     } else {
-      res.status(404).send("Usuário não encontrado");
+      res.status(404).send("Usuário não encontrado.");
     }
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
-    res.status(500).send("Erro interno do servidor");
-  }
-});
-
-app.put("/image/:id", upload.single("image"), async (req, res) => {
-  try {
-    const id = req.params.id;
-    const image = req.file.buffer;
-
-    const result = await connection.query(
-      `
-      UPDATE users
-      SET image = $1
-      WHERE id = $2;`,
-      [image, id]
-    );
-
-    if (result.rowCount > 0) {
-      res.status(200).send("Imagem atualizada com sucesso.");
-    } else {
-      res.status(404).send("Não foi possivel atualizar a imagem.");
-    }
-  } catch (error) {
-    console.error("Erro ao atualizar usuário:", error);
-    res.status(500).send("Erro interno do servidor");
-  }
-});
-
-app.put("/phone/:id", upload.single("image"), async (req, res) => {
-  try {
-    const id = req.params.id;
-    const phone = req.body.phone;
-    console.log(phone);
-
-    const result = await connection.query(
-      `
-      UPDATE users
-      SET phone = $1
-      WHERE id = $2;`,
-      [phone, id]
-    );
-
-    if (result.rowCount > 0) {
-      res.status(200).send("Telefone atualizado com sucesso.");
-    } else {
-      res.status(404).send("Não foi possivel atualizar o telefone.");
-    }
-  } catch (error) {
-    console.error("Erro ao atualizar usuário:", error);
-    res.status(500).send("Erro interno do servidor");
+    res.status(500).send("Erro interno do servidor.");
   }
 });
 
@@ -317,7 +290,7 @@ app.get("/midia-post/:id", async (req, res) => {
       return res.status(404).send("Midia não encontrada");
     }
 
-    const type = await fileTypeFromBuffer(midia); // Aqui é a alteração
+    const type = await fileTypeFromBuffer(midia);
 
     if (!type) {
       return res.status(400).send("Tipo de mídia desconhecido");

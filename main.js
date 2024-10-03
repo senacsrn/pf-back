@@ -156,11 +156,28 @@ app.get("/profile/:id", async (req, res) => {
       [id]
     );
 
+    const result = await connection.query(
+      "SELECT midia FROM posts WHERE user_id = $1",
+      [id]
+    );
+    const midia = result.rows[0].midia;
+
+    if (!midia) {
+      return res.status(404).send("Midia não encontrada");
+    }
+
+    const type = await fileTypeFromBuffer(midia);
+
+    if (!type) {
+      return res.status(400).send("Tipo de mídia desconhecido");
+    }
+
     res.send({
       user: user.rows[0],
       posts_count: posts.rows.length,
       posts: posts.rows,
       likes_count: likes.rows.length,
+      type: type.mime
     });
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);

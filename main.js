@@ -97,6 +97,17 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.get("/users/", async (req, res) => {
+  try {
+    const result = await connection.query(`SELECT * FROM users;`);
+
+    return res.status(200).send(result.rows);
+  } catch (error) {
+    console.log(error);
+    return res.sendStatus(500);
+  }
+});
+
 app.post("/posts", upload.single("midia"), async (req, res) => {
   try {
     const { description, user_id, user_is_ong } = req.body;

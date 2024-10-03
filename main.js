@@ -89,7 +89,7 @@ app.post("/login", async (req, res) => {
       const user = result.rows[0];
       return res.status(200).send(user);
     } else {
-      return res.status(401);
+      return res.status(401).send({ message: "Unauthorized" });
     }
   } catch (error) {
     console.log(error);
@@ -156,28 +156,11 @@ app.get("/profile/:id", async (req, res) => {
       [id]
     );
 
-    const result = await connection.query(
-      "SELECT midia FROM posts WHERE user_id = $1",
-      [id]
-    );
-    const midia = result.rows[0].midia;
-
-    if (!midia) {
-      return res.status(404).send("Midia não encontrada");
-    }
-
-    const type = await fileTypeFromBuffer(midia);
-
-    if (!type) {
-      return res.status(400).send("Tipo de mídia desconhecido");
-    }
-
     res.send({
       user: user.rows[0],
       posts_count: posts.rows.length,
       posts: posts.rows,
       likes_count: likes.rows.length,
-      type: type.mime
     });
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
@@ -252,26 +235,29 @@ app.put("/user/:id", upload.single("image"), async (req, res) => {
     const id = req.params.id;
     const { name, phone } = req.body;
     const image = req.file ? req.file.buffer : null;
-    
+
     let updates = 0;
 
     if (name) {
       const result = await connection.query(
-        `UPDATE users SET name = $1 WHERE id = $2;`, [name, id]
+        `UPDATE users SET name = $1 WHERE id = $2;`,
+        [name, id]
       );
       if (result.rowCount > 0) updates++;
     }
 
     if (phone) {
       const result = await connection.query(
-        `UPDATE users SET phone = $1 WHERE id = $2;`, [phone, id]
+        `UPDATE users SET phone = $1 WHERE id = $2;`,
+        [phone, id]
       );
       if (result.rowCount > 0) updates++;
     }
 
     if (image) {
       const result = await connection.query(
-        `UPDATE users SET image = $1 WHERE id = $2;`, [image, id]
+        `UPDATE users SET image = $1 WHERE id = $2;`,
+        [image, id]
       );
       if (result.rowCount > 0) updates++;
     }
@@ -279,9 +265,10 @@ app.put("/user/:id", upload.single("image"), async (req, res) => {
     if (updates > 0) {
       res.status(200).send("Dados do usuário atualizados com sucesso.");
     } else {
-      res.status(404).send("Nenhum dado foi atualizado ou usuário não encontrado.");
+      res
+        .status(404)
+        .send("Nenhum dado foi atualizado ou usuário não encontrado.");
     }
-
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
     res.status(500).send("Erro interno do servidor");

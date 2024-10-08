@@ -176,49 +176,35 @@ app.post("/like", async (req, res) => {
 app.get("/profile/:id", async (req, res) => {
   const id = req.params.id;
   try {
-    const user = await connection.query(`select * from users where id = $1;`, [
-      id,
-    ]);
+    const user = await connection.query(`SELECT * FROM users WHERE id = $1;`, [id]);
 
-    const posts = await connection.query(
-      `select * from posts where user_id = $1;`,
-      [id]
-    );
+    const posts = await connection.query(`SELECT * FROM posts WHERE user_id = $1;`, [id]);
 
-    const likes = await connection.query(
-      `select * from likes where user_id = $1;`,
-      [id]
+    const likes = await connection.query(`SELECT * FROM likes WHERE user_id = $1;`, [id]);
+
+    const postsComTipoMidia = await Promise.all(
+      posts.rows.map(async (post) => {
+        let mime = null;
+        if (post.midia) {
+          const fileType = await fileTypeFromBuffer(post.midia);
+          mime = fileType?.mime || "unknown";
+        }
+        return { ...post, mime };
+      })
     );
 
     res.send({
       user: user.rows[0],
       posts_count: posts.rows.length,
-      posts: posts.rows,
+      posts: postsComTipoMidia,
       likes_count: likes.rows.length,
     });
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
     res.status(500).json({ error: "Erro ao processar a requisição." });
   }
-
-  // const postId = req.params.id;
-  // try {
-  //   const postData = await connection.query(`select * from posts where id = $1;`, [postId]);
-  //   const post = postData.rows[0];
-  //   if (!post) {
-  //     return res.status(404).json({ error: "Post not found." });
-  //   }
-  //   const userData = await connection.query(`select email, name, is_ong from users where id = $1;`, [post.user_id]);
-  //   const user = userData.rows[0];
-  //   res.status(200).json({
-  //     post: post,
-  //     user: user
-  //   });
-  // } catch (error) {
-  //   console.error("Erro ao processar a requisição:", error);
-  //   res.status(500).json({ error: "Erro ao processar a requisição." });
-  // }
 });
+
 
 app.get("/posts", async (req, res) => {
   try {

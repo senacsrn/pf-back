@@ -176,14 +176,29 @@ app.post("/like", async (req, res) => {
 app.get("/profile/:id", async (req, res) => {
   const id = req.params.id;
   try {
-    const user = await connection.query(`SELECT * FROM users WHERE id = $1;`, [id]);
+    const userData = await connection.query(`
+      SELECT * FROM users WHERE id = $1;
+    `, [id]);
 
-    const posts = await connection.query(`SELECT * FROM posts WHERE user_id = $1;`, [id]);
+    const user = userData.rows[0];
 
-    const likes = await connection.query(`SELECT * FROM likes WHERE user_id = $1;`, [id]);
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    const postData = await connection.query(`
+      SELECT p.*, u.name, u.phone 
+      FROM posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.user_id = $1
+      ORDER BY p.created_at DESC
+      LIMIT 50;
+    `, [id]);
+
+    const posts = postData.rows;
 
     const postsComTipoMidia = await Promise.all(
-      posts.rows.map(async (post) => {
+      posts.map(async (post) => {
         let mime = null;
         if (post.midia) {
           const fileType = await fileTypeFromBuffer(post.midia);
@@ -194,16 +209,16 @@ app.get("/profile/:id", async (req, res) => {
     );
 
     res.send({
-      user: user.rows[0],
-      posts_count: posts.rows.length,
+      user,
+      posts_count: posts.length,
       posts: postsComTipoMidia,
-      likes_count: likes.rows.length,
     });
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
     res.status(500).json({ error: "Erro ao processar a requisição." });
   }
 });
+
 
 
 app.get("/posts", async (req, res) => {

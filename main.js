@@ -97,6 +97,56 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.post("/posts", upload.single("midia"), async (req, res) => {
+  try {
+    const { description, user_id, user_is_ong } = req.body;
+    const midia = req.file.buffer;
+
+    const newDate = new Date();
+    const timestamp = newDate.toISOString();
+
+    if (midia){
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (midia, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4, $5);`,
+        [midia, timestamp, user_id, user_is_ong]
+      );
+  
+    }else if(description){
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (description, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4, $5);`,
+        [description, timestamp, user_id, user_is_ong]
+      );
+  
+    }else if(description && midia){
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (midia, description, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4, $5);`,
+        [midia, description, timestamp, user_id, user_is_ong]
+      );
+  
+    }else{
+      res.sendStatus(500).send("Nenhuma midia ou descrição recebida")
+    }
+
+
+    res.status(201).send("Post criado com sucesso");
+  } catch (error) {
+    console.error("Erro ao processar a requisição:", error);
+    res.status(500).send("Erro interno do servidor");
+  }
+});
+
 app.get("/users/", async (req, res) => {
   try {
     const result = await connection.query(`SELECT * FROM users;`);
@@ -107,44 +157,6 @@ app.get("/users/", async (req, res) => {
     return res.sendStatus(500);
   }
 });
-
-app.get("/posts", async (req, res) => {
-  try {
-    const postData = await connection.query(`
-      SELECT p.*, u.name, u.phone 
-      FROM posts p
-      LEFT JOIN users u ON p.user_id = u.id
-      ORDER BY p.created_at DESC
-      LIMIT 50;
-    `);
-    
-    const posts = postData.rows;
-
-    if (!posts.length) {
-      return res.status(404).json({ error: "Nenhum post encontrado." });
-    }
-
-    const postsComTipoMidia = await Promise.all(
-      posts.map(async post => {
-        let mime = null;
-        if (post.midia) {
-          const fileType = await fileTypeFromBuffer(post.midia);
-          mime = fileType?.mime || "unknown";
-        }
-        
-        return { ...post, mime };
-      })
-    );
-
-    res.status(200).json(postsComTipoMidia);
-  } catch (error) {
-    console.error("Erro ao processar a requisição:", error);
-    res.status(500).json({ error: "Erro ao processar a requisição." });
-  }
-});
-
-
-
 
 app.post("/like", async (req, res) => {
   const { user_id, post_id } = req.body;
@@ -213,7 +225,14 @@ app.get("/profile/:id", async (req, res) => {
 
 app.get("/posts", async (req, res) => {
   try {
-    const postData = await connection.query(`SELECT * FROM posts;`);
+    const postData = await connection.query(`
+      SELECT p.*, u.name, u.phone 
+      FROM posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+      LIMIT 50;
+    `);
+    
     const posts = postData.rows;
 
     if (!posts.length) {
@@ -222,11 +241,13 @@ app.get("/posts", async (req, res) => {
 
     const postsComTipoMidia = await Promise.all(
       posts.map(async post => {
+        let mime = null;
         if (post.midia) {
           const fileType = await fileTypeFromBuffer(post.midia);
-          return { ...post, mime: fileType?.mime || "unknown" };
+          mime = fileType?.mime || "unknown";
         }
-        return { ...post, mime: null };
+        
+        return { ...post, mime };
       })
     );
 
@@ -236,7 +257,6 @@ app.get("/posts", async (req, res) => {
     res.status(500).json({ error: "Erro ao processar a requisição." });
   }
 });
-
 
 app.get("/user/", async (req, res) => {
   try {

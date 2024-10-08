@@ -222,17 +222,30 @@ app.get("/profile/:id", async (req, res) => {
 
 app.get("/posts", async (req, res) => {
   try {
-    const postData = await connection.query(`select * from posts;`);
-    const post = postData.rows;
-    if (!post) {
-      return res.status(404).json({ error: "Post not found." });
+    const postData = await connection.query(`SELECT * FROM posts;`);
+    const posts = postData.rows;
+
+    if (!posts.length) {
+      return res.status(404).json({ error: "Nenhum post encontrado." });
     }
-    res.status(200).send(post);
+
+    const postsComTipoMidia = await Promise.all(
+      posts.map(async post => {
+        if (post.midia) {
+          const fileType = await fileTypeFromBuffer(post.midia);
+          return { ...post, mime: fileType?.mime || "unknown" };
+        }
+        return { ...post, mime: null };
+      })
+    );
+
+    res.status(200).json(postsComTipoMidia);
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
     res.status(500).json({ error: "Erro ao processar a requisição." });
   }
 });
+
 
 app.get("/user/", async (req, res) => {
   try {

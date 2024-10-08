@@ -108,51 +108,42 @@ app.get("/users/", async (req, res) => {
   }
 });
 
-app.post("/posts", upload.single("midia"), async (req, res) => {
+app.get("/posts", async (req, res) => {
   try {
-    const { description, user_id, user_is_ong } = req.body;
-    const midia = req.file ? req.file.buffer : null;
+    const postData = await connection.query(`
+      SELECT p.*, u.name, u.phone 
+      FROM posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+      LIMIT 50;
+    `);
+    
+    const posts = postData.rows;
 
-    const newDate = new Date();
-    const timestamp = newDate.toISOString();
-
-    if (midia && description) {
-      await connection.query(
-        `
-        INSERT INTO posts 
-        (midia, description, created_at, user_id, user_is_ong)
-        VALUES
-        ($1, $2, $3, $4, $5);`,
-        [midia, description, timestamp, user_id, user_is_ong]
-      );
-    } else if (midia) {
-      await connection.query(
-        `
-        INSERT INTO posts 
-        (midia, created_at, user_id, user_is_ong)
-        VALUES
-        ($1, $2, $3, $4);`,
-        [midia, timestamp, user_id, user_is_ong]
-      );
-    } else if (description) {
-      await connection.query(
-        `
-        INSERT INTO posts 
-        (description, created_at, user_id, user_is_ong)
-        VALUES
-        ($1, $2, $3, $4);`,
-        [description, timestamp, user_id, user_is_ong]
-      );
-    } else {
-      return res.status(400).send("Nenhuma mídia ou descrição recebida");
+    if (!posts.length) {
+      return res.status(404).json({ error: "Nenhum post encontrado." });
     }
 
-    res.status(201).send("Post criado com sucesso");
+    const postsComTipoMidia = await Promise.all(
+      posts.map(async post => {
+        let mime = null;
+        if (post.midia) {
+          const fileType = await fileTypeFromBuffer(post.midia);
+          mime = fileType?.mime || "unknown";
+        }
+        
+        return { ...post, mime };
+      })
+    );
+
+    res.status(200).json(postsComTipoMidia);
   } catch (error) {
     console.error("Erro ao processar a requisição:", error);
-    res.status(500).send("Erro interno do servidor");
+    res.status(500).json({ error: "Erro ao processar a requisição." });
   }
 });
+
+
 
 
 app.post("/like", async (req, res) => {

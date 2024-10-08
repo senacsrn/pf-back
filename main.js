@@ -111,19 +111,41 @@ app.get("/users/", async (req, res) => {
 app.post("/posts", upload.single("midia"), async (req, res) => {
   try {
     const { description, user_id, user_is_ong } = req.body;
-    const midia = req.file.buffer;
+    const midia = req.file ? req.file.buffer : null;
 
     const newDate = new Date();
     const timestamp = newDate.toISOString();
 
-    await connection.query(
-      `
-      INSERT INTO posts 
-      (midia, description, created_at, user_id, user_is_ong)
-      VALUES
-      ($1, $2, $3, $4, $5);`,
-      [midia, description, timestamp, user_id, user_is_ong]
-    );
+    if (midia && description) {
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (midia, description, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4, $5);`,
+        [midia, description, timestamp, user_id, user_is_ong]
+      );
+    } else if (midia) {
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (midia, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4);`,
+        [midia, timestamp, user_id, user_is_ong]
+      );
+    } else if (description) {
+      await connection.query(
+        `
+        INSERT INTO posts 
+        (description, created_at, user_id, user_is_ong)
+        VALUES
+        ($1, $2, $3, $4);`,
+        [description, timestamp, user_id, user_is_ong]
+      );
+    } else {
+      return res.status(400).send("Nenhuma mídia ou descrição recebida");
+    }
 
     res.status(201).send("Post criado com sucesso");
   } catch (error) {
@@ -131,6 +153,7 @@ app.post("/posts", upload.single("midia"), async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 app.post("/like", async (req, res) => {
   const { user_id, post_id } = req.body;

@@ -224,7 +224,7 @@ app.get("/profile/:id", async (req, res) => {
 app.get("/posts", async (req, res) => {
   try {
     const postData = await connection.query(`
-      SELECT p.*, u.name, u.phone 
+      SELECT p.*, u.name, u.phone, u.image
       FROM posts p
       LEFT JOIN users u ON p.user_id = u.id
       ORDER BY p.created_at DESC
@@ -255,6 +255,7 @@ app.get("/posts", async (req, res) => {
     res.status(500).json({ error: "Erro ao processar a requisição." });
   }
 });
+
 
 app.get("/user/", async (req, res) => {
   try {

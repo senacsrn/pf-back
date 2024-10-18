@@ -233,10 +233,6 @@ app.get("/posts", async (req, res) => {
     
     const posts = postData.rows;
 
-    if (!posts.length) {
-      return res.status(404).json({ error: "Nenhum post encontrado." });
-    }
-
     const postsComTipoMidia = await Promise.all(
       posts.map(async post => {
         let mime = null;
